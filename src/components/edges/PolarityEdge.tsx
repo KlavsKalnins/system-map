@@ -21,16 +21,21 @@ import { useMapStore } from '../../store/useMapStore';
  */
 export default function PolarityEdge({
   id,
+  source,
+  target,
   sourceX,
   sourceY,
   targetX,
   targetY,
   sourcePosition,
   targetPosition,
+  sourceHandleId,
+  targetHandleId,
   data,
   selected,
 }: EdgeProps & { data?: SystemEdgeData }) {
   const edgeStyle = useMapStore((s) => s.config.edgeStyle);
+  const edges = useMapStore((s) => s.edges);
   const updateEdgeData = useMapStore((s) => s.updateEdgeData);
   const deleteEdge = useMapStore((s) => s.deleteEdge);
   const reverseEdge = useMapStore((s) => s.reverseEdge);
@@ -44,6 +49,33 @@ export default function PolarityEdge({
   const controlOffsetX = (data?.controlOffsetX as number) ?? 0;
   const controlOffsetY = (data?.controlOffsetY as number) ?? 0;
 
+  // ── Sibling offset: fan out edges sharing the same handle ───────────────
+
+  const SIBLING_SPREAD = 8; // px between sibling edges
+
+  // Edges sharing the same source node+handle
+  const sourceSiblings = edges.filter(
+    (e) => e.source === source && e.sourceHandle === sourceHandleId,
+  );
+  const sourceIdx = sourceSiblings.findIndex((e) => e.id === id);
+  const sourceFan = (sourceIdx - (sourceSiblings.length - 1) / 2) * SIBLING_SPREAD;
+
+  // Edges sharing the same target node+handle
+  const targetSiblings = edges.filter(
+    (e) => e.target === target && e.targetHandle === targetHandleId,
+  );
+  const targetIdx = targetSiblings.findIndex((e) => e.id === id);
+  const targetFan = (targetIdx - (targetSiblings.length - 1) / 2) * SIBLING_SPREAD;
+
+  // Apply perpendicular offset based on handle side
+  const isSourceHorizontal = sourcePosition === 'top' || sourcePosition === 'bottom';
+  const adjustedSourceX = sourceX + (isSourceHorizontal ? sourceFan : 0);
+  const adjustedSourceY = sourceY + (isSourceHorizontal ? 0 : sourceFan);
+
+  const isTargetHorizontal = targetPosition === 'top' || targetPosition === 'bottom';
+  const adjustedTargetX = targetX + (isTargetHorizontal ? targetFan : 0);
+  const adjustedTargetY = targetY + (isTargetHorizontal ? 0 : targetFan);
+
   // ── Path computation ────────────────────────────────────────────────────
 
   let edgePath: string;
@@ -55,10 +87,10 @@ export default function PolarityEdge({
     const curvature = 0.25;
 
     [edgePath, labelX, labelY] = getBezierPath({
-      sourceX,
-      sourceY,
-      targetX,
-      targetY,
+      sourceX: adjustedSourceX,
+      sourceY: adjustedSourceY,
+      targetX: adjustedTargetX,
+      targetY: adjustedTargetY,
       sourcePosition,
       targetPosition,
       curvature,
@@ -68,14 +100,14 @@ export default function PolarityEdge({
     if (controlOffsetX !== 0 || controlOffsetY !== 0) {
       // For the custom builder we need pixel-based offsets for control points.
       // Approximate what React Flow does: offset = curvature * axis-distance, min 50px
-      const dx = Math.abs(targetX - sourceX);
-      const dy = Math.abs(targetY - sourceY);
+      const dx = Math.abs(adjustedTargetX - adjustedSourceX);
+      const dy = Math.abs(adjustedTargetY - adjustedSourceY);
       const isHorizontal =
         sourcePosition === 'left' || sourcePosition === 'right';
       const cpOffset = Math.max(50, curvature * (isHorizontal ? dx : dy));
 
       edgePath = buildCustomBezierPath(
-        sourceX, sourceY, targetX, targetY,
+        adjustedSourceX, adjustedSourceY, adjustedTargetX, adjustedTargetY,
         sourcePosition, targetPosition,
         cpOffset, controlOffsetX, controlOffsetY,
       );
@@ -85,10 +117,10 @@ export default function PolarityEdge({
     }
   } else {
     [edgePath, labelX, labelY] = getSmoothStepPath({
-      sourceX,
-      sourceY,
-      targetX,
-      targetY,
+      sourceX: adjustedSourceX,
+      sourceY: adjustedSourceY,
+      targetX: adjustedTargetX,
+      targetY: adjustedTargetY,
       sourcePosition,
       targetPosition,
       borderRadius: 16,

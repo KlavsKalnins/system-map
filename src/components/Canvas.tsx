@@ -7,6 +7,7 @@ import {
   BackgroundVariant,
   ConnectionMode,
   useReactFlow,
+  useUpdateNodeInternals,
   type NodeTypes,
   type EdgeTypes,
 } from '@xyflow/react';
@@ -33,6 +34,7 @@ export default function Canvas() {
     onNodesChange,
     onEdgesChange,
     onConnect,
+    onReconnect,
     setSelectedNodeId,
     deleteNode,
     deleteEdge,
@@ -44,7 +46,18 @@ export default function Canvas() {
   } = useMapStore();
 
   const { fitView } = useReactFlow();
+  const updateNodeInternals = useUpdateNodeInternals();
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Recalculate handle positions when dualHandles changes
+  useEffect(() => {
+    // Small delay to let the DOM update with new handle positions
+    const t = setTimeout(() => {
+      nodes.forEach((n) => updateNodeInternals(n.id));
+    }, 50);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.dualHandles, updateNodeInternals]);
 
   // Auto-load on mount
   useEffect(() => {
@@ -147,6 +160,8 @@ export default function Canvas() {
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onReconnect={onReconnect}
+        reconnectRadius={80}
         onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
         onMoveEnd={(_, viewport) => setViewport(viewport)}

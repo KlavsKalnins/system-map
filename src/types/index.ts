@@ -35,6 +35,7 @@ export interface MapConfig {
   blobsEnabled: boolean;
   snapToGrid: boolean;
   autoHandles: boolean;
+  dualHandles: boolean;
   gridSize: number;
   blobPadding: number;
   edgeStyle: 'classic' | 'bezier';

@@ -197,6 +197,19 @@ export default function Toolbar() {
         ⇄ Arrows
       </button>
 
+      {/* Dual handles toggle */}
+      <button
+        onClick={() => setConfig({ dualHandles: !config.dualHandles })}
+        className={`px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors ${
+          config.dualHandles
+            ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200'
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        }`}
+        title="Toggle dual-color offset handles (green source / red target)"
+      >
+        ◉ Dual
+      </button>
+
       {/* Fit view */}
       <button
         onClick={handleFitView}

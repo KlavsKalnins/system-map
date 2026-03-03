@@ -3,10 +3,12 @@ import {
   applyNodeChanges,
   applyEdgeChanges,
   addEdge,
+  reconnectEdge,
   type OnNodesChange,
   type OnEdgesChange,
   type OnConnect,
   type Viewport,
+  type Connection,
 } from '@xyflow/react';
 import { v4 as uuid } from 'uuid';
 import type {
@@ -41,6 +43,7 @@ const defaultConfig: MapConfig = {
   blobsEnabled: false,
   snapToGrid: false,
   autoHandles: false,
+  dualHandles: true,
   gridSize: 20,
   blobPadding: 40,
   edgeStyle: 'classic',
@@ -62,6 +65,7 @@ interface MapState {
   onNodesChange: OnNodesChange<SystemNode>;
   onEdgesChange: OnEdgesChange<SystemEdge>;
   onConnect: OnConnect;
+  onReconnect: (oldEdge: SystemEdge, newConnection: Connection) => void;
 
   // Node CRUD
   addNode: (data: Partial<SystemNodeData>, position?: { x: number; y: number }) => void;
@@ -149,6 +153,22 @@ export const useMapStore = create<MapState>((set, get) => ({
       data: { polarity: '+' },
     };
     set({ edges: addEdge(newEdge, get().edges) as SystemEdge[] });
+  },
+
+  onReconnect: (oldEdge, newConnection) => {
+    pushSnapshot(get());
+    // Normalize handles on the new connection
+    const normalizeHandle = (h: string | null | undefined, prefix: 's' | 't'): string | null => {
+      if (!h) return null;
+      const pos = h.startsWith('s-') || h.startsWith('t-') ? h.slice(2) : h;
+      return `${prefix}-${pos}`;
+    };
+    const normalized = {
+      ...newConnection,
+      sourceHandle: normalizeHandle(newConnection.sourceHandle, 's'),
+      targetHandle: normalizeHandle(newConnection.targetHandle, 't'),
+    };
+    set({ edges: reconnectEdge(oldEdge, normalized, get().edges) as SystemEdge[] });
   },
 
   // ── Node CRUD ───────────────────────────────────────────────────────────
@@ -349,7 +369,7 @@ export const useMapStore = create<MapState>((set, get) => ({
       };
     });
     set({
-      config: { ...defaultConfig, ...save.config, blobPadding: save.config.blobPadding ?? 40, edgeStyle: save.config.edgeStyle ?? 'classic', autoHandles: save.config.autoHandles ?? false },
+      config: { ...defaultConfig, ...save.config, blobPadding: save.config.blobPadding ?? 40, edgeStyle: save.config.edgeStyle ?? 'classic', autoHandles: save.config.autoHandles ?? false, dualHandles: save.config.dualHandles ?? true },
       nodes: save.nodes,
       edges: migratedEdges,
       viewport: save.viewport ?? { x: 0, y: 0, zoom: 1 },

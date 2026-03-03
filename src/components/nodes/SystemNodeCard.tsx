@@ -201,65 +201,66 @@ function SystemNodeCard({ id, data, selected }: NodeProps & { data: SystemNodeDa
         <div className="px-3 py-2 text-xs text-gray-400 italic">No connections yet</div>
       )}
 
-      {/* Source handles — visible dots on all 4 sides */}
-      <Handle
-        type="source"
-        id="s-top"
-        position={Position.Top}
-        className="!w-2.5 !h-2.5 !rounded-full !border-2 !border-white"
-        style={{ backgroundColor: categoryColor }}
-      />
-      <Handle
-        type="source"
-        id="s-bottom"
-        position={Position.Bottom}
-        className="!w-2.5 !h-2.5 !rounded-full !border-2 !border-white"
-        style={{ backgroundColor: categoryColor }}
-      />
-      <Handle
-        type="source"
-        id="s-left"
-        position={Position.Left}
-        className="!w-2.5 !h-2.5 !rounded-full !border-2 !border-white"
-        style={{ backgroundColor: categoryColor }}
-      />
-      <Handle
-        type="source"
-        id="s-right"
-        position={Position.Right}
-        className="!w-2.5 !h-2.5 !rounded-full !border-2 !border-white"
-        style={{ backgroundColor: categoryColor }}
-      />
+      {config.dualHandles ? (
+        <>
+          {/* Source handles — green dots, offset to one side */}
+          <Handle type="source" id="s-top" position={Position.Top}
+            className="!w-2 !h-2 !rounded-full !border-2 !border-white"
+            style={{ backgroundColor: '#22c55e', left: '38%' }} />
+          <Handle type="source" id="s-bottom" position={Position.Bottom}
+            className="!w-2 !h-2 !rounded-full !border-2 !border-white"
+            style={{ backgroundColor: '#22c55e', left: '38%' }} />
+          <Handle type="source" id="s-left" position={Position.Left}
+            className="!w-2 !h-2 !rounded-full !border-2 !border-white"
+            style={{ backgroundColor: '#22c55e', top: '38%' }} />
+          <Handle type="source" id="s-right" position={Position.Right}
+            className="!w-2 !h-2 !rounded-full !border-2 !border-white"
+            style={{ backgroundColor: '#22c55e', top: '38%' }} />
 
-      {/* Target handles — same positions, invisible but used by React Flow for incoming edges */}
-      <Handle
-        type="target"
-        id="t-top"
-        position={Position.Top}
-        className="!w-2.5 !h-2.5 !rounded-full !border-0"
-        style={{ backgroundColor: 'transparent', pointerEvents: 'none' }}
-      />
-      <Handle
-        type="target"
-        id="t-bottom"
-        position={Position.Bottom}
-        className="!w-2.5 !h-2.5 !rounded-full !border-0"
-        style={{ backgroundColor: 'transparent', pointerEvents: 'none' }}
-      />
-      <Handle
-        type="target"
-        id="t-left"
-        position={Position.Left}
-        className="!w-2.5 !h-2.5 !rounded-full !border-0"
-        style={{ backgroundColor: 'transparent', pointerEvents: 'none' }}
-      />
-      <Handle
-        type="target"
-        id="t-right"
-        position={Position.Right}
-        className="!w-2.5 !h-2.5 !rounded-full !border-0"
-        style={{ backgroundColor: 'transparent', pointerEvents: 'none' }}
-      />
+          {/* Target handles — red dots, offset to the other side */}
+          <Handle type="target" id="t-top" position={Position.Top}
+            className="!w-2 !h-2 !rounded-full !border-2 !border-white"
+            style={{ backgroundColor: '#ef4444', left: '62%' }} />
+          <Handle type="target" id="t-bottom" position={Position.Bottom}
+            className="!w-2 !h-2 !rounded-full !border-2 !border-white"
+            style={{ backgroundColor: '#ef4444', left: '62%' }} />
+          <Handle type="target" id="t-left" position={Position.Left}
+            className="!w-2 !h-2 !rounded-full !border-2 !border-white"
+            style={{ backgroundColor: '#ef4444', top: '62%' }} />
+          <Handle type="target" id="t-right" position={Position.Right}
+            className="!w-2 !h-2 !rounded-full !border-2 !border-white"
+            style={{ backgroundColor: '#ef4444', top: '62%' }} />
+        </>
+      ) : (
+        <>
+          {/* Classic handles — single centered gray dot per side */}
+          <Handle type="source" id="s-top" position={Position.Top}
+            className="!w-2 !h-2 !rounded-full !border-2 !border-white"
+            style={{ backgroundColor: '#9ca3af' }} />
+          <Handle type="source" id="s-bottom" position={Position.Bottom}
+            className="!w-2 !h-2 !rounded-full !border-2 !border-white"
+            style={{ backgroundColor: '#9ca3af' }} />
+          <Handle type="source" id="s-left" position={Position.Left}
+            className="!w-2 !h-2 !rounded-full !border-2 !border-white"
+            style={{ backgroundColor: '#9ca3af' }} />
+          <Handle type="source" id="s-right" position={Position.Right}
+            className="!w-2 !h-2 !rounded-full !border-2 !border-white"
+            style={{ backgroundColor: '#9ca3af' }} />
+
+          <Handle type="target" id="t-top" position={Position.Top}
+            className="!w-2 !h-2 !rounded-full !border-2 !border-white"
+            style={{ backgroundColor: '#9ca3af' }} />
+          <Handle type="target" id="t-bottom" position={Position.Bottom}
+            className="!w-2 !h-2 !rounded-full !border-2 !border-white"
+            style={{ backgroundColor: '#9ca3af' }} />
+          <Handle type="target" id="t-left" position={Position.Left}
+            className="!w-2 !h-2 !rounded-full !border-2 !border-white"
+            style={{ backgroundColor: '#9ca3af' }} />
+          <Handle type="target" id="t-right" position={Position.Right}
+            className="!w-2 !h-2 !rounded-full !border-2 !border-white"
+            style={{ backgroundColor: '#9ca3af' }} />
+        </>
+      )}
 
       {/* Backward-compat: hidden handles with no ID for old edges that have null sourceHandle/targetHandle */}
       <Handle
