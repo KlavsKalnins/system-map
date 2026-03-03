@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import type { SystemNodeData } from '../../types';
 import { useMapStore } from '../../store/useMapStore';
@@ -51,6 +51,20 @@ function SystemNodeCard({ id, data, selected }: NodeProps & { data: SystemNodeDa
   );
 
   const hasConnections = connections.outgoing.length > 0 || connections.incoming.length > 0;
+  const totalConnections = connections.incoming.length + connections.outgoing.length;
+  const COLLAPSE_THRESHOLD = 5;
+  const [manualToggle, setManualToggle] = useState<boolean | null>(null);
+  const isCollapsed = manualToggle !== null ? manualToggle : totalConnections >= COLLAPSE_THRESHOLD;
+
+  // Polarity summary helper
+  const polaritySummary = (items: { polarity: '+' | '-' }[]) => {
+    const pos = items.filter((c) => c.polarity === '+').length;
+    const neg = items.filter((c) => c.polarity === '-').length;
+    const parts: string[] = [];
+    if (pos > 0) parts.push(`+${pos}`);
+    if (neg > 0) parts.push(`−${neg}`);
+    return parts.join(' / ');
+  };
 
   return (
     <div
@@ -97,55 +111,93 @@ function SystemNodeCard({ id, data, selected }: NodeProps & { data: SystemNodeDa
         {data.title}
       </div>
 
-      {/* Incoming connections (what affects this node) */}
-      {connections.incoming.length > 0 && (
-        <div className="px-3 pt-1.5">
-          <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-0.5">
-            Affected by
-          </div>
-          <ul className="text-xs text-gray-600 space-y-0.5">
-            {connections.incoming.map((c) => (
-              <li key={c.id} className="flex items-center gap-1">
-                <span
-                  className={`text-[10px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center text-white shrink-0 ${
-                    c.polarity === '+' ? 'bg-green-500' : 'bg-red-500'
-                  }`}
-                >
-                  {c.polarity}
-                </span>
-                <span className="truncate">{c.label}</span>
-                <span className="text-gray-300">→</span>
-              </li>
-            ))}
-          </ul>
+      {/* Connections section */}
+      {hasConnections && isCollapsed ? (
+        /* ── Collapsed summary ── */
+        <div className="px-3 py-1.5">
+          {connections.incoming.length > 0 && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-600">
+              <span className="text-[10px] font-medium text-gray-400 uppercase">Affected by</span>
+              <span className="font-semibold">{connections.incoming.length}</span>
+              <span className="text-[10px] text-gray-400">({polaritySummary(connections.incoming)})</span>
+            </div>
+          )}
+          {connections.outgoing.length > 0 && (
+            <div className="flex items-center gap-1.5 text-xs text-gray-600 mt-0.5">
+              <span className="text-[10px] font-medium text-gray-400 uppercase">Affects</span>
+              <span className="font-semibold">{connections.outgoing.length}</span>
+              <span className="text-[10px] text-gray-400">({polaritySummary(connections.outgoing)})</span>
+            </div>
+          )}
+          <button
+            className="mt-1 w-full text-[10px] text-blue-500 hover:text-blue-700 font-medium flex items-center justify-center gap-0.5 cursor-pointer"
+            onClick={(e) => { e.stopPropagation(); setManualToggle(false); }}
+          >
+            <span>▼</span> Show {totalConnections} connections
+          </button>
         </div>
-      )}
+      ) : hasConnections ? (
+        /* ── Expanded lists ── */
+        <div>
+          {/* Incoming connections (what affects this node) */}
+          {connections.incoming.length > 0 && (
+            <div className="px-3 pt-1.5">
+              <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-0.5">
+                Affected by
+              </div>
+              <ul className="text-xs text-gray-600 space-y-0.5">
+                {connections.incoming.map((c) => (
+                  <li key={c.id} className="flex items-center gap-1">
+                    <span
+                      className={`text-[10px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center text-white shrink-0 ${
+                        c.polarity === '+' ? 'bg-green-500' : 'bg-red-500'
+                      }`}
+                    >
+                      {c.polarity}
+                    </span>
+                    <span className="truncate">{c.label}</span>
+                    <span className="text-gray-300">→</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
 
-      {/* Outgoing connections (what this node affects) */}
-      {connections.outgoing.length > 0 && (
-        <div className="px-3 pt-1.5 pb-2">
-          <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-0.5">
-            Affects
-          </div>
-          <ul className="text-xs text-gray-600 space-y-0.5">
-            {connections.outgoing.map((c) => (
-              <li key={c.id} className="flex items-center gap-1">
-                <span className="text-gray-300">→</span>
-                <span
-                  className={`text-[10px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center text-white shrink-0 ${
-                    c.polarity === '+' ? 'bg-green-500' : 'bg-red-500'
-                  }`}
-                >
-                  {c.polarity}
-                </span>
-                <span className="truncate">{c.label}</span>
-              </li>
-            ))}
-          </ul>
+          {/* Outgoing connections (what this node affects) */}
+          {connections.outgoing.length > 0 && (
+            <div className="px-3 pt-1.5 pb-1">
+              <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-0.5">
+                Affects
+              </div>
+              <ul className="text-xs text-gray-600 space-y-0.5">
+                {connections.outgoing.map((c) => (
+                  <li key={c.id} className="flex items-center gap-1">
+                    <span className="text-gray-300">→</span>
+                    <span
+                      className={`text-[10px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center text-white shrink-0 ${
+                        c.polarity === '+' ? 'bg-green-500' : 'bg-red-500'
+                      }`}
+                    >
+                      {c.polarity}
+                    </span>
+                    <span className="truncate">{c.label}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Collapse button — only show when above threshold or user manually expanded */}
+          {totalConnections >= COLLAPSE_THRESHOLD && (
+            <button
+              className="w-full text-[10px] text-blue-500 hover:text-blue-700 font-medium flex items-center justify-center gap-0.5 py-1 cursor-pointer"
+              onClick={(e) => { e.stopPropagation(); setManualToggle(true); }}
+            >
+              <span>▲</span> Collapse
+            </button>
+          )}
         </div>
-      )}
-
-      {!hasConnections && (
+      ) : (
         <div className="px-3 py-2 text-xs text-gray-400 italic">No connections yet</div>
       )}
 
