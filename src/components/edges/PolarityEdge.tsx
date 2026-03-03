@@ -281,7 +281,7 @@ export default function PolarityEdge({
           reconnectInfoRef.current = null;
 
           const clickFlow = screenToFlowPosition({ x: ev.clientX, y: ev.clientY });
-          const { edges: allEdges, nodes: allNodes, onEdgesChange: dispatch } = useMapStore.getState();
+          const { edges: allEdges, nodes: allNodes } = useMapStore.getState();
 
           // Build a set of edges whose path passes near the click point
           const HIT_DISTANCE = 40; // flow-space px
