@@ -8,6 +8,11 @@ export default function Toolbar() {
   const setConfig = useMapStore((s) => s.setConfig);
   const getSaveData = useMapStore((s) => s.getSaveData);
   const loadSaveData = useMapStore((s) => s.loadSaveData);
+  const autoLayout = useMapStore((s) => s.autoLayout);
+  const undo = useMapStore((s) => s.undo);
+  const redo = useMapStore((s) => s.redo);
+  const undoCount = useMapStore((s) => s.undoCount);
+  const redoCount = useMapStore((s) => s.redoCount);
   const { fitView, screenToFlowPosition } = useReactFlow();
 
   const handleAddNode = () => {
@@ -49,8 +54,38 @@ export default function Toolbar() {
     fitView({ padding: 0.2 });
   };
 
+  const handleAutoLayout = () => {
+    autoLayout('TB');
+    setTimeout(() => fitView({ padding: 0.2 }), 50);
+  };
+
+  const handleUndo = () => undo();
+  const handleRedo = () => redo();
+
   return (
     <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 bg-white rounded-lg shadow-md border border-gray-200 px-2 py-1.5">
+      {/* Undo */}
+      <button
+        onClick={handleUndo}
+        disabled={undoCount === 0}
+        className="px-2 py-1.5 text-xs font-medium rounded-md transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+        title="Undo (Ctrl+Z)"
+      >
+        ↩ Undo
+      </button>
+
+      {/* Redo */}
+      <button
+        onClick={handleRedo}
+        disabled={redoCount === 0}
+        className="px-2 py-1.5 text-xs font-medium rounded-md transition-colors bg-gray-100 text-gray-600 hover:bg-gray-200 disabled:opacity-30 disabled:cursor-not-allowed"
+        title="Redo (Ctrl+Shift+Z)"
+      >
+        ↪ Redo
+      </button>
+
+      <div className="w-px h-6 bg-gray-200" />
+
       {/* Add Node */}
       <button
         onClick={handleAddNode}
@@ -95,6 +130,15 @@ export default function Toolbar() {
         title="Fit view to all nodes"
       >
         ⊡ Fit
+      </button>
+
+      {/* Auto Layout */}
+      <button
+        onClick={handleAutoLayout}
+        className="px-2.5 py-1.5 text-xs font-medium bg-amber-100 text-amber-700 rounded-md hover:bg-amber-200 transition-colors"
+        title="Auto-arrange nodes based on causal flow"
+      >
+        ⊞ Auto Layout
       </button>
 
       <div className="w-px h-6 bg-gray-200" />

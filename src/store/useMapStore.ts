@@ -17,6 +17,21 @@ import type {
   SystemNodeData,
 } from '../types';
 import { DEFAULT_CATEGORIES } from '../lib/colors';
+import { computeAutoLayout } from '../lib/autoLayout';
+
+// ─── Undo / Redo history ────────────────────────────────────────────────────
+
+interface Snapshot {
+  nodes: SystemNode[];
+  edges: SystemEdge[];
+}
+
+const MAX_HISTORY = 50;
+let undoStack: Snapshot[] = [];
+let redoStack: Snapshot[] = [];
+
+// pushSnapshot is set after store creation to access set()
+let pushSnapshot: (state: { nodes: SystemNode[]; edges: SystemEdge[] }) => void = () => {};
 
 const STORAGE_KEY = 'systems-map-autosave';
 
@@ -37,6 +52,8 @@ interface MapState {
   config: MapConfig;
   viewport: Viewport;
   selectedNodeId: string | null;
+  undoCount: number;
+  redoCount: number;
 
   // React Flow handlers
   onNodesChange: OnNodesChange<SystemNode>;
@@ -57,6 +74,13 @@ interface MapState {
   // Selection
   setSelectedNodeId: (id: string | null) => void;
 
+  // Layout
+  autoLayout: (direction?: 'TB' | 'LR' | 'BT' | 'RL') => void;
+
+  // Undo / Redo
+  undo: () => void;
+  redo: () => void;
+
   // Config
   setConfig: (config: Partial<MapConfig>) => void;
   setViewport: (viewport: Viewport) => void;
@@ -76,6 +100,8 @@ export const useMapStore = create<MapState>((set, get) => ({
   config: defaultConfig,
   viewport: { x: 0, y: 0, zoom: 1 },
   selectedNodeId: null,
+  undoCount: 0,
+  redoCount: 0,
 
   // ── React Flow event handlers ───────────────────────────────────────────
 
@@ -88,6 +114,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   },
 
   onConnect: (connection) => {
+    pushSnapshot(get());
     // Normalize handles: with Loose mode, target might land on a source handle (s-*)
     // Ensure sourceHandle is always s-* and targetHandle is always t-*
     const normalizeHandle = (h: string | null | undefined, prefix: 's' | 't'): string | null => {
@@ -109,6 +136,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   // ── Node CRUD ───────────────────────────────────────────────────────────
 
   addNode: (data, position) => {
+    pushSnapshot(get());
     const id = `n-${uuid()}`;
     const newNode: SystemNode = {
       id,
@@ -131,6 +159,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   },
 
   deleteNode: (id) => {
+    pushSnapshot(get());
     set({
       nodes: get().nodes.filter((n) => n.id !== id),
       edges: get().edges.filter((e) => e.source !== id && e.target !== id),
@@ -150,6 +179,7 @@ export const useMapStore = create<MapState>((set, get) => ({
   // ── Edge CRUD ───────────────────────────────────────────────────────────
 
   updateEdgeData: (id, data) => {
+    pushSnapshot(get());
     set({
       edges: get().edges.map((e) =>
         e.id === id ? { ...e, data: { ...e.data, ...data } } : e,
@@ -158,10 +188,12 @@ export const useMapStore = create<MapState>((set, get) => ({
   },
 
   deleteEdge: (id) => {
+    pushSnapshot(get());
     set({ edges: get().edges.filter((e) => e.id !== id) });
   },
 
   reverseEdge: (id) => {
+    pushSnapshot(get());
     set({
       edges: get().edges.map((e) => {
         if (e.id !== id) return e;
@@ -198,6 +230,47 @@ export const useMapStore = create<MapState>((set, get) => ({
   },
 
   setViewport: (viewport) => set({ viewport }),
+
+  // ── Layout ──────────────────────────────────────────────────────────────
+
+  autoLayout: (direction) => {
+    pushSnapshot(get());
+    const { nodes, edges } = get();
+    const laid = computeAutoLayout(nodes, edges, { direction });
+    set({ nodes: laid });
+  },
+
+  // ── Undo / Redo ─────────────────────────────────────────────────────────
+
+  undo: () => {
+    if (undoStack.length === 0) return;
+    redoStack.push({
+      nodes: structuredClone(get().nodes),
+      edges: structuredClone(get().edges),
+    });
+    const snapshot = undoStack.pop()!;
+    set({
+      nodes: snapshot.nodes,
+      edges: snapshot.edges,
+      undoCount: undoStack.length,
+      redoCount: redoStack.length,
+    });
+  },
+
+  redo: () => {
+    if (redoStack.length === 0) return;
+    undoStack.push({
+      nodes: structuredClone(get().nodes),
+      edges: structuredClone(get().edges),
+    });
+    const snapshot = redoStack.pop()!;
+    set({
+      nodes: snapshot.nodes,
+      edges: snapshot.edges,
+      undoCount: undoStack.length,
+      redoCount: redoStack.length,
+    });
+  },
 
   // ── Persistence ─────────────────────────────────────────────────────────
 
@@ -266,3 +339,14 @@ export const useMapStore = create<MapState>((set, get) => ({
     }
   },
 }));
+
+// Initialize pushSnapshot now that we have access to set via the store
+pushSnapshot = (state) => {
+  undoStack.push({
+    nodes: structuredClone(state.nodes),
+    edges: structuredClone(state.edges),
+  });
+  if (undoStack.length > MAX_HISTORY) undoStack.shift();
+  redoStack = [];
+  useMapStore.setState({ undoCount: undoStack.length, redoCount: 0 });
+};

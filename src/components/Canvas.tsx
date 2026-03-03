@@ -39,6 +39,8 @@ export default function Canvas() {
     setViewport,
     autoSave,
     autoLoad,
+    undo,
+    redo,
   } = useMapStore();
 
   const { fitView } = useReactFlow();
@@ -98,11 +100,29 @@ export default function Canvas() {
         e.preventDefault();
         autoSave();
       }
+
+      // Ctrl+Z / Cmd+Z: undo
+      if ((e.metaKey || e.ctrlKey) && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+      }
+
+      // Ctrl+Shift+Z / Cmd+Shift+Z: redo
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key === 'z') {
+        e.preventDefault();
+        redo();
+      }
+
+      // Ctrl+Y / Cmd+Y: redo (alternative)
+      if ((e.metaKey || e.ctrlKey) && e.key === 'y') {
+        e.preventDefault();
+        redo();
+      }
     };
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [deleteNode, deleteEdge, autoSave]);
+  }, [deleteNode, deleteEdge, autoSave, undo, redo]);
 
   // Minimap color
   const minimapNodeColor = useCallback(
