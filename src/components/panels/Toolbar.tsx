@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useMapStore } from '../../store/useMapStore';
 import ConfigPanel from './ConfigPanel';
+import AnalyticsPanel from './AnalyticsPanel';
 import { serializeSave, downloadJson, uploadJson, deserializeSave } from '../../lib/io';
 import { useReactFlow, getNodesBounds, getViewportForBounds } from '@xyflow/react';
 import { toJpeg } from 'html-to-image';
 
 export default function Toolbar() {
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
   const addNode = useMapStore((s) => s.addNode);
   const config = useMapStore((s) => s.config);
   const setConfig = useMapStore((s) => s.setConfig);
@@ -295,6 +297,15 @@ export default function Toolbar() {
         ↑ Import
       </button>
 
+      {/* Analytics */}
+      <button
+        onClick={() => setAnalyticsOpen(true)}
+        className="px-2.5 py-1.5 text-xs font-medium bg-cyan-100 text-cyan-700 rounded-md hover:bg-cyan-200 transition-colors"
+        title="System analytics and insights"
+      >
+        📊 Analytics
+      </button>
+
       <div className="w-px h-6 bg-gray-200" />
 
       {/* Settings */}
@@ -310,6 +321,7 @@ export default function Toolbar() {
         ⚙ Settings
       </button>
       <ConfigPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <AnalyticsPanel open={analyticsOpen} onClose={() => setAnalyticsOpen(false)} />
     </div>
   );
 }
