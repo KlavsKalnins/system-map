@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import { useMapStore } from '../../store/useMapStore';
+import ConfigPanel from './ConfigPanel';
 import { serializeSave, downloadJson, uploadJson, deserializeSave } from '../../lib/io';
 import { useReactFlow, getNodesBounds, getViewportForBounds } from '@xyflow/react';
 import { toJpeg } from 'html-to-image';
 
 export default function Toolbar() {
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const addNode = useMapStore((s) => s.addNode);
   const config = useMapStore((s) => s.config);
   const setConfig = useMapStore((s) => s.setConfig);
@@ -88,6 +91,10 @@ export default function Toolbar() {
     );
 
     try {
+      // Hide edge labels (polarity/reverse buttons) during capture
+      const edgeLabels = viewport.querySelectorAll<HTMLElement>('.react-flow__edgelabel-renderer');
+      edgeLabels.forEach((el) => (el.style.visibility = 'hidden'));
+
       const dataUrl = await toJpeg(viewport, {
         quality: 0.95,
         backgroundColor: '#f8fafc',
@@ -100,12 +107,18 @@ export default function Toolbar() {
         },
       });
 
+      // Restore edge labels
+      edgeLabels.forEach((el) => (el.style.visibility = ''));
+
       const link = document.createElement('a');
       const date = new Date().toISOString().slice(0, 10);
       link.download = `systems-map-${date}.jpg`;
       link.href = dataUrl;
       link.click();
     } catch (err) {
+      // Restore edge labels on failure too
+      const edgeLabels = viewport.querySelectorAll<HTMLElement>('.react-flow__edgelabel-renderer');
+      edgeLabels.forEach((el) => (el.style.visibility = ''));
       alert(`JPG export failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
@@ -228,6 +241,22 @@ export default function Toolbar() {
       >
         ↑ Import
       </button>
+
+      <div className="w-px h-6 bg-gray-200" />
+
+      {/* Settings */}
+      <button
+        onClick={() => setSettingsOpen((v) => !v)}
+        className={`px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors ${
+          settingsOpen
+            ? 'bg-gray-200 text-gray-800'
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        }`}
+        title="Settings"
+      >
+        ⚙ Settings
+      </button>
+      <ConfigPanel open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </div>
   );
 }

@@ -17,7 +17,7 @@ import type {
   SystemNodeData,
 } from '../types';
 import { DEFAULT_CATEGORIES } from '../lib/colors';
-import { computeAutoLayout } from '../lib/autoLayout';
+import { computeAutoLayout, optimizeEdgeHandles } from '../lib/autoLayout';
 
 // ─── Undo / Redo history ────────────────────────────────────────────────────
 
@@ -254,7 +254,8 @@ export const useMapStore = create<MapState>((set, get) => ({
     pushSnapshot(get());
     const { nodes, edges } = get();
     const laid = computeAutoLayout(nodes, edges, { direction });
-    set({ nodes: laid });
+    const optimizedEdges = optimizeEdgeHandles(laid, edges);
+    set({ nodes: laid, edges: optimizedEdges });
   },
 
   // ── Undo / Redo ─────────────────────────────────────────────────────────

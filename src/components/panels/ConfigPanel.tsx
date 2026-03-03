@@ -2,10 +2,14 @@ import { useState, useCallback } from 'react';
 import { useMapStore } from '../../store/useMapStore';
 import { v4 as uuid } from 'uuid';
 
-export default function ConfigPanel() {
+interface ConfigPanelProps {
+  open: boolean;
+  onClose: () => void;
+}
+
+export default function ConfigPanel({ open, onClose }: ConfigPanelProps) {
   const config = useMapStore((s) => s.config);
   const setConfig = useMapStore((s) => s.setConfig);
-  const [open, setOpen] = useState(false);
 
   const [newCatLabel, setNewCatLabel] = useState('');
   const [newCatColor, setNewCatColor] = useState('#6366f1');
@@ -37,24 +41,14 @@ export default function ConfigPanel() {
     [config.categories, setConfig],
   );
 
-  if (!open) {
-    return (
-      <button
-        onClick={() => setOpen(true)}
-        className="absolute top-3 right-[19.5rem] z-10 bg-white rounded-lg shadow-md border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors"
-        title="Settings"
-      >
-        ⚙ Settings
-      </button>
-    );
-  }
+  if (!open) return null;
 
   return (
-    <div className="absolute top-3 right-[19.5rem] z-10 w-64 bg-white rounded-lg shadow-md border border-gray-200 p-3">
+    <div className="absolute top-14 left-3 z-20 w-64 bg-white rounded-lg shadow-md border border-gray-200 p-3">
       <div className="flex items-center justify-between mb-3">
         <span className="text-xs font-semibold text-gray-700">Settings</span>
         <button
-          onClick={() => setOpen(false)}
+          onClick={onClose}
           className="text-gray-400 hover:text-gray-600 text-xs"
         >
           ✕

@@ -155,6 +155,7 @@ export default function Canvas() {
         snapToGrid={config.snapToGrid}
         snapGrid={snapGrid}
         connectionMode={ConnectionMode.Loose}
+        minZoom={0.01}
         fitView
         deleteKeyCode={null} // we handle delete ourselves
         className="bg-gray-50"
