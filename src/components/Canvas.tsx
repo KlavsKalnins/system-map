@@ -161,7 +161,7 @@ export default function Canvas() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onReconnect={onReconnect}
-        reconnectRadius={80}
+        reconnectRadius={25}
         onNodeClick={onNodeClick}
         onPaneClick={onPaneClick}
         onMoveEnd={(_, viewport) => setViewport(viewport)}
