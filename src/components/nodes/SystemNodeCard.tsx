@@ -1,4 +1,4 @@
-import { memo, useCallback } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { Handle, Position, type NodeProps } from '@xyflow/react';
 import type { SystemNodeData } from '../../types';
 import { useMapStore } from '../../store/useMapStore';
@@ -6,6 +6,8 @@ import { getCategoryColor } from '../../lib/colors';
 
 function SystemNodeCard({ id, data, selected }: NodeProps & { data: SystemNodeData }) {
   const config = useMapStore((s) => s.config);
+  const edges = useMapStore((s) => s.edges);
+  const nodes = useMapStore((s) => s.nodes);
   const setSelectedNodeId = useMapStore((s) => s.setSelectedNodeId);
   const deleteNode = useMapStore((s) => s.deleteNode);
   const duplicateNode = useMapStore((s) => s.duplicateNode);
@@ -13,14 +15,42 @@ function SystemNodeCard({ id, data, selected }: NodeProps & { data: SystemNodeDa
   const categoryColor = getCategoryColor(config.categories, data.category);
   const categoryLabel = config.categories.find((c) => c.id === data.category)?.label ?? 'Uncategorized';
 
+  // Derive connections from edges
+  const connections = useMemo(() => {
+    const outgoing = edges
+      .filter((e) => e.source === id)
+      .map((e) => {
+        const target = nodes.find((n) => n.id === e.target);
+        return {
+          id: e.id,
+          label: target?.data?.title ?? '?',
+          polarity: (e.data?.polarity as '+' | '-') ?? '+',
+          direction: 'out' as const,
+        };
+      });
+    const incoming = edges
+      .filter((e) => e.target === id)
+      .map((e) => {
+        const source = nodes.find((n) => n.id === e.source);
+        return {
+          id: e.id,
+          label: source?.data?.title ?? '?',
+          polarity: (e.data?.polarity as '+' | '-') ?? '+',
+          direction: 'in' as const,
+        };
+      });
+    return { outgoing, incoming };
+  }, [edges, nodes, id]);
+
   const handleContextMenu = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
-      // Simple: just select on right click; context menu could be added later
       setSelectedNodeId(id);
     },
     [id, setSelectedNodeId],
   );
+
+  const hasConnections = connections.outgoing.length > 0 || connections.incoming.length > 0;
 
   return (
     <div
@@ -67,56 +97,128 @@ function SystemNodeCard({ id, data, selected }: NodeProps & { data: SystemNodeDa
         {data.title}
       </div>
 
-      {/* Increases */}
-      {data.increases.length > 0 && (
+      {/* Incoming connections (what affects this node) */}
+      {connections.incoming.length > 0 && (
         <div className="px-3 pt-1.5">
-          <div className="text-[10px] font-medium text-green-600 uppercase tracking-wide mb-0.5">
-            ▲ Increases
+          <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-0.5">
+            Affected by
           </div>
           <ul className="text-xs text-gray-600 space-y-0.5">
-            {data.increases.map((item, i) => (
-              <li key={i} className="flex items-center gap-1">
-                <span className="w-1 h-1 rounded-full bg-green-400" />
-                {item}
+            {connections.incoming.map((c) => (
+              <li key={c.id} className="flex items-center gap-1">
+                <span
+                  className={`text-[10px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center text-white shrink-0 ${
+                    c.polarity === '+' ? 'bg-green-500' : 'bg-red-500'
+                  }`}
+                >
+                  {c.polarity}
+                </span>
+                <span className="truncate">{c.label}</span>
+                <span className="text-gray-300">→</span>
               </li>
             ))}
           </ul>
         </div>
       )}
 
-      {/* Decreases */}
-      {data.decreases.length > 0 && (
+      {/* Outgoing connections (what this node affects) */}
+      {connections.outgoing.length > 0 && (
         <div className="px-3 pt-1.5 pb-2">
-          <div className="text-[10px] font-medium text-red-500 uppercase tracking-wide mb-0.5">
-            ▼ Decreases
+          <div className="text-[10px] font-medium text-gray-400 uppercase tracking-wide mb-0.5">
+            Affects
           </div>
           <ul className="text-xs text-gray-600 space-y-0.5">
-            {data.decreases.map((item, i) => (
-              <li key={i} className="flex items-center gap-1">
-                <span className="w-1 h-1 rounded-full bg-red-400" />
-                {item}
+            {connections.outgoing.map((c) => (
+              <li key={c.id} className="flex items-center gap-1">
+                <span className="text-gray-300">→</span>
+                <span
+                  className={`text-[10px] font-bold w-3.5 h-3.5 rounded-full flex items-center justify-center text-white shrink-0 ${
+                    c.polarity === '+' ? 'bg-green-500' : 'bg-red-500'
+                  }`}
+                >
+                  {c.polarity}
+                </span>
+                <span className="truncate">{c.label}</span>
               </li>
             ))}
           </ul>
         </div>
       )}
 
-      {data.increases.length === 0 && data.decreases.length === 0 && (
-        <div className="px-3 py-2 text-xs text-gray-400 italic">No effects listed</div>
+      {!hasConnections && (
+        <div className="px-3 py-2 text-xs text-gray-400 italic">No connections yet</div>
       )}
 
-      {/* Handles */}
+      {/* Source handles — visible dots on all 4 sides */}
       <Handle
-        type="target"
+        type="source"
+        id="s-top"
         position={Position.Top}
-        className="!w-3 !h-3 !rounded-full !border-2 !border-white"
+        className="!w-2.5 !h-2.5 !rounded-full !border-2 !border-white"
         style={{ backgroundColor: categoryColor }}
       />
       <Handle
         type="source"
+        id="s-bottom"
         position={Position.Bottom}
-        className="!w-3 !h-3 !rounded-full !border-2 !border-white"
+        className="!w-2.5 !h-2.5 !rounded-full !border-2 !border-white"
         style={{ backgroundColor: categoryColor }}
+      />
+      <Handle
+        type="source"
+        id="s-left"
+        position={Position.Left}
+        className="!w-2.5 !h-2.5 !rounded-full !border-2 !border-white"
+        style={{ backgroundColor: categoryColor }}
+      />
+      <Handle
+        type="source"
+        id="s-right"
+        position={Position.Right}
+        className="!w-2.5 !h-2.5 !rounded-full !border-2 !border-white"
+        style={{ backgroundColor: categoryColor }}
+      />
+
+      {/* Target handles — same positions, invisible but used by React Flow for incoming edges */}
+      <Handle
+        type="target"
+        id="t-top"
+        position={Position.Top}
+        className="!w-2.5 !h-2.5 !rounded-full !border-0"
+        style={{ backgroundColor: 'transparent', pointerEvents: 'none' }}
+      />
+      <Handle
+        type="target"
+        id="t-bottom"
+        position={Position.Bottom}
+        className="!w-2.5 !h-2.5 !rounded-full !border-0"
+        style={{ backgroundColor: 'transparent', pointerEvents: 'none' }}
+      />
+      <Handle
+        type="target"
+        id="t-left"
+        position={Position.Left}
+        className="!w-2.5 !h-2.5 !rounded-full !border-0"
+        style={{ backgroundColor: 'transparent', pointerEvents: 'none' }}
+      />
+      <Handle
+        type="target"
+        id="t-right"
+        position={Position.Right}
+        className="!w-2.5 !h-2.5 !rounded-full !border-0"
+        style={{ backgroundColor: 'transparent', pointerEvents: 'none' }}
+      />
+
+      {/* Backward-compat: hidden handles with no ID for old edges that have null sourceHandle/targetHandle */}
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        style={{ opacity: 0, width: 0, height: 0, pointerEvents: 'none' }}
+      />
+      <Handle
+        type="target"
+        position={Position.Top}
+        style={{ opacity: 0, width: 0, height: 0, pointerEvents: 'none' }}
       />
     </div>
   );

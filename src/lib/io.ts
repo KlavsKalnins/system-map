@@ -14,8 +14,8 @@ const PositionSchema = z.object({
 
 const NodeDataSchema = z.object({
   title: z.string(),
-  increases: z.array(z.string()),
-  decreases: z.array(z.string()),
+  increases: z.array(z.string()).optional(),
+  decreases: z.array(z.string()).optional(),
   category: z.string(),
 });
 

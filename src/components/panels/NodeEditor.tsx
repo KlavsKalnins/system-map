@@ -1,25 +1,47 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useMapStore } from '../../store/useMapStore';
 import { getCategoryColor } from '../../lib/colors';
 
 export default function NodeEditor() {
   const selectedNodeId = useMapStore((s) => s.selectedNodeId);
   const nodes = useMapStore((s) => s.nodes);
+  const edges = useMapStore((s) => s.edges);
   const config = useMapStore((s) => s.config);
   const updateNodeData = useMapStore((s) => s.updateNodeData);
+  const updateEdgeData = useMapStore((s) => s.updateEdgeData);
   const deleteNode = useMapStore((s) => s.deleteNode);
+  const deleteEdge = useMapStore((s) => s.deleteEdge);
   const setSelectedNodeId = useMapStore((s) => s.setSelectedNodeId);
 
   const node = nodes.find((n) => n.id === selectedNodeId);
 
-  const [newIncrease, setNewIncrease] = useState('');
-  const [newDecrease, setNewDecrease] = useState('');
-
-  // Reset inputs when node changes
-  useEffect(() => {
-    setNewIncrease('');
-    setNewDecrease('');
-  }, [selectedNodeId]);
+  // Derive connections from edges
+  const connections = useMemo(() => {
+    if (!node) return { incoming: [], outgoing: [] };
+    const incoming = edges
+      .filter((e) => e.target === node.id)
+      .map((e) => {
+        const source = nodes.find((n) => n.id === e.source);
+        return {
+          edgeId: e.id,
+          nodeId: e.source,
+          label: source?.data?.title ?? '?',
+          polarity: (e.data?.polarity as '+' | '-') ?? '+',
+        };
+      });
+    const outgoing = edges
+      .filter((e) => e.source === node.id)
+      .map((e) => {
+        const target = nodes.find((n) => n.id === e.target);
+        return {
+          edgeId: e.id,
+          nodeId: e.target,
+          label: target?.data?.title ?? '?',
+          polarity: (e.data?.polarity as '+' | '-') ?? '+',
+        };
+      });
+    return { incoming, outgoing };
+  }, [node, edges, nodes]);
 
   const handleTitleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -35,36 +57,11 @@ export default function NodeEditor() {
     [node, updateNodeData],
   );
 
-  const addIncrease = useCallback(() => {
-    if (!node || !newIncrease.trim()) return;
-    updateNodeData(node.id, { increases: [...node.data.increases, newIncrease.trim()] });
-    setNewIncrease('');
-  }, [node, newIncrease, updateNodeData]);
-
-  const removeIncrease = useCallback(
-    (index: number) => {
-      if (!node) return;
-      updateNodeData(node.id, {
-        increases: node.data.increases.filter((_, i) => i !== index),
-      });
+  const togglePolarity = useCallback(
+    (edgeId: string, current: '+' | '-') => {
+      updateEdgeData(edgeId, { polarity: current === '+' ? '-' : '+' });
     },
-    [node, updateNodeData],
-  );
-
-  const addDecrease = useCallback(() => {
-    if (!node || !newDecrease.trim()) return;
-    updateNodeData(node.id, { decreases: [...node.data.decreases, newDecrease.trim()] });
-    setNewDecrease('');
-  }, [node, newDecrease, updateNodeData]);
-
-  const removeDecrease = useCallback(
-    (index: number) => {
-      if (!node) return;
-      updateNodeData(node.id, {
-        decreases: node.data.decreases.filter((_, i) => i !== index),
-      });
-    },
-    [node, updateNodeData],
+    [updateEdgeData],
   );
 
   if (!node) {
@@ -123,75 +120,79 @@ export default function NodeEditor() {
           </select>
         </div>
 
-        {/* Increases */}
+        {/* Incoming connections */}
         <div>
-          <label className="block text-xs font-medium text-green-600 mb-1">▲ Increases</label>
-          <div className="space-y-1 mb-2">
-            {node.data.increases.map((item, i) => (
-              <div key={i} className="flex items-center gap-1 group">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400 shrink-0" />
-                <span className="text-xs text-gray-700 flex-1">{item}</span>
-                <button
-                  onClick={() => removeIncrease(i)}
-                  className="text-gray-300 hover:text-red-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-1">
-            <input
-              type="text"
-              value={newIncrease}
-              onChange={(e) => setNewIncrease(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addIncrease()}
-              placeholder="Add increase..."
-              className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-green-400"
-            />
-            <button
-              onClick={addIncrease}
-              className="px-2 py-1 text-xs bg-green-50 text-green-600 rounded hover:bg-green-100"
-            >
-              +
-            </button>
-          </div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">
+            Affected by ({connections.incoming.length})
+          </label>
+          {connections.incoming.length === 0 ? (
+            <p className="text-xs text-gray-400 italic">No incoming connections</p>
+          ) : (
+            <div className="space-y-1">
+              {connections.incoming.map((c) => (
+                <div key={c.edgeId} className="flex items-center gap-1.5 group">
+                  <button
+                    onClick={() => togglePolarity(c.edgeId, c.polarity)}
+                    className={`w-5 h-5 rounded-full text-[10px] font-bold text-white flex items-center justify-center shrink-0 cursor-pointer transition-colors ${
+                      c.polarity === '+' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'
+                    }`}
+                    title="Toggle polarity"
+                  >
+                    {c.polarity}
+                  </button>
+                  <span className="text-xs text-gray-700 flex-1 truncate">{c.label}</span>
+                  <span className="text-gray-300 text-xs">→ this</span>
+                  <button
+                    onClick={() => deleteEdge(c.edgeId)}
+                    className="text-gray-300 hover:text-red-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Remove connection"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Decreases */}
+        {/* Outgoing connections */}
         <div>
-          <label className="block text-xs font-medium text-red-500 mb-1">▼ Decreases</label>
-          <div className="space-y-1 mb-2">
-            {node.data.decreases.map((item, i) => (
-              <div key={i} className="flex items-center gap-1 group">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
-                <span className="text-xs text-gray-700 flex-1">{item}</span>
-                <button
-                  onClick={() => removeDecrease(i)}
-                  className="text-gray-300 hover:text-red-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
-                >
-                  ✕
-                </button>
-              </div>
-            ))}
-          </div>
-          <div className="flex gap-1">
-            <input
-              type="text"
-              value={newDecrease}
-              onChange={(e) => setNewDecrease(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addDecrease()}
-              placeholder="Add decrease..."
-              className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-red-400"
-            />
-            <button
-              onClick={addDecrease}
-              className="px-2 py-1 text-xs bg-red-50 text-red-500 rounded hover:bg-red-100"
-            >
-              +
-            </button>
-          </div>
+          <label className="block text-xs font-medium text-gray-500 mb-1">
+            Affects ({connections.outgoing.length})
+          </label>
+          {connections.outgoing.length === 0 ? (
+            <p className="text-xs text-gray-400 italic">No outgoing connections</p>
+          ) : (
+            <div className="space-y-1">
+              {connections.outgoing.map((c) => (
+                <div key={c.edgeId} className="flex items-center gap-1.5 group">
+                  <span className="text-gray-300 text-xs">this →</span>
+                  <button
+                    onClick={() => togglePolarity(c.edgeId, c.polarity)}
+                    className={`w-5 h-5 rounded-full text-[10px] font-bold text-white flex items-center justify-center shrink-0 cursor-pointer transition-colors ${
+                      c.polarity === '+' ? 'bg-green-500 hover:bg-green-600' : 'bg-red-500 hover:bg-red-600'
+                    }`}
+                    title="Toggle polarity"
+                  >
+                    {c.polarity}
+                  </button>
+                  <span className="text-xs text-gray-700 flex-1 truncate">{c.label}</span>
+                  <button
+                    onClick={() => deleteEdge(c.edgeId)}
+                    className="text-gray-300 hover:text-red-400 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
+                    title="Remove connection"
+                  >
+                    ✕
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
+
+        <p className="text-[10px] text-gray-400 text-center">
+          Drag from handle ● to handle ● to create connections
+        </p>
 
         {/* Delete */}
         <button

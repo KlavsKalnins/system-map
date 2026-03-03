@@ -12,8 +12,6 @@ export interface Category {
 
 export interface SystemNodeData {
   title: string;
-  increases: string[];
-  decreases: string[];
   category: string; // category id
   [key: string]: unknown; // required by React Flow
 }

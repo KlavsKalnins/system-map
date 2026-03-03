@@ -5,6 +5,7 @@ import {
   Controls,
   Background,
   BackgroundVariant,
+  ConnectionMode,
   useReactFlow,
   type NodeTypes,
   type EdgeTypes,
@@ -133,6 +134,7 @@ export default function Canvas() {
         edgeTypes={edgeTypes}
         snapToGrid={config.snapToGrid}
         snapGrid={snapGrid}
+        connectionMode={ConnectionMode.Loose}
         fitView
         deleteKeyCode={null} // we handle delete ourselves
         className="bg-gray-50"

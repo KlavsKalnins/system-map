@@ -52,6 +52,7 @@ interface MapState {
   // Edge CRUD
   updateEdgeData: (id: string, data: Partial<SystemEdge['data']>) => void;
   deleteEdge: (id: string) => void;
+  reverseEdge: (id: string) => void;
 
   // Selection
   setSelectedNodeId: (id: string | null) => void;
@@ -87,10 +88,19 @@ export const useMapStore = create<MapState>((set, get) => ({
   },
 
   onConnect: (connection) => {
+    // Normalize handles: with Loose mode, target might land on a source handle (s-*)
+    // Ensure sourceHandle is always s-* and targetHandle is always t-*
+    const normalizeHandle = (h: string | null | undefined, prefix: 's' | 't'): string | null => {
+      if (!h) return null;
+      const pos = h.startsWith('s-') || h.startsWith('t-') ? h.slice(2) : h;
+      return `${prefix}-${pos}`;
+    };
     const newEdge: SystemEdge = {
       ...connection,
       id: `e-${uuid()}`,
       type: 'polarity',
+      sourceHandle: normalizeHandle(connection.sourceHandle, 's'),
+      targetHandle: normalizeHandle(connection.targetHandle, 't'),
       data: { polarity: '+' },
     };
     set({ edges: addEdge(newEdge, get().edges) as SystemEdge[] });
@@ -106,8 +116,6 @@ export const useMapStore = create<MapState>((set, get) => ({
       position: position ?? { x: 250 + Math.random() * 200, y: 200 + Math.random() * 200 },
       data: {
         title: data.title ?? 'New Node',
-        increases: data.increases ?? [],
-        decreases: data.decreases ?? [],
         category: data.category ?? get().config.categories[0]?.id ?? '',
       },
     };
@@ -153,6 +161,32 @@ export const useMapStore = create<MapState>((set, get) => ({
     set({ edges: get().edges.filter((e) => e.id !== id) });
   },
 
+  reverseEdge: (id) => {
+    set({
+      edges: get().edges.map((e) => {
+        if (e.id !== id) return e;
+        // Extract the position part from any handle id (s-top → top, t-right → right, etc.)
+        const getPosition = (h: string | null | undefined): string | null => {
+          if (!h) return null;
+          // Handle IDs are "s-top", "t-bottom", "s-left", "t-right", or legacy "top", "bottom", etc.
+          if (h.startsWith('s-') || h.startsWith('t-')) return h.slice(2);
+          return h;
+        };
+        const oldSourcePos = getPosition(e.sourceHandle);
+        const oldTargetPos = getPosition(e.targetHandle);
+        return {
+          ...e,
+          source: e.target,
+          target: e.source,
+          // New source needs a source handle (s-*) at the old target's position
+          sourceHandle: oldTargetPos ? `s-${oldTargetPos}` : null,
+          // New target needs a target handle (t-*) at the old source's position
+          targetHandle: oldSourcePos ? `t-${oldSourcePos}` : null,
+        };
+      }),
+    });
+  },
+
   // ── Selection ───────────────────────────────────────────────────────────
 
   setSelectedNodeId: (id) => set({ selectedNodeId: id }),
@@ -176,10 +210,36 @@ export const useMapStore = create<MapState>((set, get) => ({
   }),
 
   loadSaveData: (save) => {
+    // Migrate edges: ensure handle IDs are compatible with current handle scheme
+    const migratedEdges = save.edges.map((e) => {
+      // Old edges with null handles still work via backward-compat hidden handles
+      // Edges with old-style names ("top", "bottom-target") get migrated
+      const migrateSource = (h: string | null | undefined) => {
+        if (!h) return h ?? null;
+        if (h === 'top') return 's-top';
+        if (h === 'bottom') return 's-bottom';
+        if (h === 'left') return 's-left';
+        if (h === 'right') return 's-right';
+        return h;
+      };
+      const migrateTarget = (h: string | null | undefined) => {
+        if (!h) return h ?? null;
+        if (h === 'top-target') return 't-top';
+        if (h === 'bottom-target') return 't-bottom';
+        if (h === 'left-target') return 't-left';
+        if (h === 'right-target') return 't-right';
+        return h;
+      };
+      return {
+        ...e,
+        sourceHandle: migrateSource(e.sourceHandle),
+        targetHandle: migrateTarget(e.targetHandle),
+      };
+    });
     set({
       config: save.config,
       nodes: save.nodes,
-      edges: save.edges,
+      edges: migratedEdges,
       viewport: save.viewport ?? { x: 0, y: 0, zoom: 1 },
       selectedNodeId: null,
     });
