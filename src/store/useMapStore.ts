@@ -75,6 +75,7 @@ interface MapState {
 
   // Edge CRUD
   updateEdgeData: (id: string, data: Partial<SystemEdge['data']>) => void;
+  updateEdgeEndpoint: (edgeId: string, updates: { source?: string; sourceHandle?: string | null; target?: string; targetHandle?: string | null }) => void;
   deleteEdge: (id: string) => void;
   reverseEdge: (id: string) => void;
   resetEdgeControlPoints: () => void;
@@ -222,6 +223,16 @@ export const useMapStore = create<MapState>((set, get) => ({
       edges: get().edges.map((e) =>
         e.id === id ? { ...e, data: { ...e.data, ...data } } : e,
       ),
+    });
+  },
+
+  updateEdgeEndpoint: (edgeId, updates) => {
+    pushSnapshot(get());
+    set({
+      edges: get().edges.map((e) => {
+        if (e.id !== edgeId) return e;
+        return { ...e, ...updates };
+      }),
     });
   },
 
