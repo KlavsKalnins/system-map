@@ -16,6 +16,17 @@ const HOLD_THRESHOLD_MS = 300;
 /** Perpendicular offset (px) between sibling edges sharing the same handle. */
 const SIBLING_SPREAD = 8;
 
+/** Shortest distance from point (px,py) to segment (ax,ay)-(bx,by). */
+function pointToSegmentDist(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const lenSq = dx * dx + dy * dy;
+  if (lenSq === 0) return Math.hypot(px - ax, py - ay);
+  let t = ((px - ax) * dx + (py - ay) * dy) / lenSq;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+}
+
 /**
  * PolarityEdge — supports two rendering modes:
  *
@@ -265,37 +276,52 @@ export default function PolarityEdge({
         if (dragLineRef.current) dragLineRef.current.style.display = 'none';
 
         if (!isDraggingRef.current) {
-          // Short click — cycle selection to next overlapping edge
+          // Short click — cycle selection through overlapping edges near click point
           isDraggingRef.current = false;
           reconnectInfoRef.current = null;
 
-          const { edges: allEdges, onEdgesChange } = useMapStore.getState();
-          // Edges near the click point: share either source or target with this edge
-          const overlapping = allEdges.filter(
-            (edge) =>
-              edge.source === source ||
-              edge.target === target ||
-              edge.source === target ||
-              edge.target === source,
-          );
+          const clickFlow = screenToFlowPosition({ x: ev.clientX, y: ev.clientY });
+          const { edges: allEdges, nodes: allNodes, onEdgesChange: dispatch } = useMapStore.getState();
 
-          // Build the target edge id
-          let selectId = id;
-          if (overlapping.length > 1) {
-            const currentIdx = overlapping.findIndex((edge) => edge.selected);
-            const nextIdx = (currentIdx + 1) % overlapping.length;
-            selectId = overlapping[nextIdx].id;
-          }
+          // Build a set of edges whose path passes near the click point
+          const HIT_DISTANCE = 40; // flow-space px
+          const nearbyEdges = allEdges.filter((edge) => {
+            const sNode = allNodes.find((n) => n.id === edge.source);
+            const tNode = allNodes.find((n) => n.id === edge.target);
+            if (!sNode || !tNode) return false;
+            const sw = sNode.measured?.width ?? 180;
+            const sh = sNode.measured?.height ?? 100;
+            const tw = tNode.measured?.width ?? 180;
+            const th = tNode.measured?.height ?? 100;
+            const sx = sNode.position.x + sw / 2;
+            const sy = sNode.position.y + sh / 2;
+            const tx = tNode.position.x + tw / 2;
+            const ty = tNode.position.y + th / 2;
+            return pointToSegmentDist(clickFlow.x, clickFlow.y, sx, sy, tx, ty) < HIT_DISTANCE;
+          });
 
-          // Deselect all edges first, then select the target — via React Flow's change pipeline
-          const changes: Array<{ id: string; type: 'select'; selected: boolean }> = [];
-          for (const edge of allEdges) {
-            if (edge.selected && edge.id !== selectId) {
-              changes.push({ id: edge.id, type: 'select', selected: false });
+          if (nearbyEdges.length === 0) return;
+
+          // Find currently selected edge in the nearby set
+          const selectedIdx = nearbyEdges.findIndex((e) => e.selected);
+          // Cycle: if something is selected, go to next; otherwise select first
+          const nextIdx = selectedIdx >= 0 ? (selectedIdx + 1) % nearbyEdges.length : 0;
+          const selectId = nearbyEdges[nextIdx].id;
+
+          setTimeout(() => {
+            const freshEdges = useMapStore.getState().edges;
+            const { onEdgesChange: d } = useMapStore.getState();
+            const changes: Array<{ id: string; type: 'select'; selected: boolean }> = [];
+            for (const edge of freshEdges) {
+              if (edge.selected && edge.id !== selectId) {
+                changes.push({ id: edge.id, type: 'select', selected: false });
+              }
+              if (!edge.selected && edge.id === selectId) {
+                changes.push({ id: edge.id, type: 'select', selected: true });
+              }
             }
-          }
-          changes.push({ id: selectId, type: 'select', selected: true });
-          onEdgesChange(changes);
+            if (changes.length > 0) d(changes);
+          }, 0);
           return;
         }
 
@@ -309,7 +335,8 @@ export default function PolarityEdge({
         const currentNodes = useMapStore.getState().nodes;
         const fixedNodeId = info.end === 'source' ? target : source;
 
-        // Find nearest node to drop point
+        // Find nearest node to drop point (must be within max distance)
+        const MAX_DROP_DISTANCE = 200; // flow-space px — ignore far-away nodes
         let bestNode: typeof currentNodes[0] | null = null;
         let bestDist = Infinity;
         for (const n of currentNodes) {
@@ -324,7 +351,7 @@ export default function PolarityEdge({
           }
         }
 
-        if (!bestNode) return;
+        if (!bestNode || bestDist > MAX_DROP_DISTANCE) return;
 
         const fixedNode = currentNodes.find((n) => n.id === fixedNodeId);
         if (!fixedNode) return;
