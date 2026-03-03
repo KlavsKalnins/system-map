@@ -42,6 +42,7 @@ const defaultConfig: MapConfig = {
   snapToGrid: false,
   gridSize: 20,
   blobPadding: 40,
+  edgeStyle: 'classic',
   categories: DEFAULT_CATEGORIES,
 };
 
@@ -71,6 +72,7 @@ interface MapState {
   updateEdgeData: (id: string, data: Partial<SystemEdge['data']>) => void;
   deleteEdge: (id: string) => void;
   reverseEdge: (id: string) => void;
+  resetEdgeControlPoints: () => void;
 
   // Selection
   setSelectedNodeId: (id: string | null) => void;
@@ -220,6 +222,20 @@ export const useMapStore = create<MapState>((set, get) => ({
     });
   },
 
+  resetEdgeControlPoints: () => {
+    pushSnapshot(get());
+    set({
+      edges: get().edges.map((e) => ({
+        ...e,
+        data: {
+          ...e.data,
+          controlOffsetX: undefined,
+          controlOffsetY: undefined,
+        },
+      })),
+    });
+  },
+
   // ── Selection ───────────────────────────────────────────────────────────
 
   setSelectedNodeId: (id) => set({ selectedNodeId: id }),
@@ -311,7 +327,7 @@ export const useMapStore = create<MapState>((set, get) => ({
       };
     });
     set({
-      config: { ...defaultConfig, ...save.config, blobPadding: save.config.blobPadding ?? 40 },
+      config: { ...defaultConfig, ...save.config, blobPadding: save.config.blobPadding ?? 40, edgeStyle: save.config.edgeStyle ?? 'classic' },
       nodes: save.nodes,
       edges: migratedEdges,
       viewport: save.viewport ?? { x: 0, y: 0, zoom: 1 },

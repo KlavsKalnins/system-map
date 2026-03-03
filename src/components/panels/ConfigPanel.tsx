@@ -74,6 +74,26 @@ export default function ConfigPanel() {
         />
       </div>
 
+      {/* Edge style */}
+      <div className="mb-3">
+        <label className="block text-xs text-gray-500 mb-1">Edge Style</label>
+        <div className="flex gap-1 mt-1">
+          {(['classic', 'bezier'] as const).map((style) => (
+            <button
+              key={style}
+              onClick={() => setConfig({ edgeStyle: style })}
+              className={`flex-1 px-2 py-1 text-xs rounded border transition-colors capitalize ${
+                config.edgeStyle === style
+                  ? 'bg-indigo-100 border-indigo-400 text-indigo-700 font-semibold'
+                  : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              {style}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Blob padding */}
       <div className="mb-3">
         <label className="block text-xs text-gray-500 mb-1">Blob Padding: {config.blobPadding ?? 40}px</label>

@@ -22,6 +22,8 @@ export type SystemNode = Node<SystemNodeData, 'system'>;
 
 export interface SystemEdgeData {
   polarity?: '+' | '-';
+  controlOffsetX?: number;
+  controlOffsetY?: number;
   [key: string]: unknown;
 }
 
@@ -34,6 +36,7 @@ export interface MapConfig {
   snapToGrid: boolean;
   gridSize: number;
   blobPadding: number;
+  edgeStyle: 'classic' | 'bezier';
   categories: Category[];
 }
 

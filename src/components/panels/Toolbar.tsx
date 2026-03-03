@@ -1,6 +1,7 @@
 import { useMapStore } from '../../store/useMapStore';
 import { serializeSave, downloadJson, uploadJson, deserializeSave } from '../../lib/io';
-import { useReactFlow } from '@xyflow/react';
+import { useReactFlow, getNodesBounds, getViewportForBounds } from '@xyflow/react';
+import { toJpeg } from 'html-to-image';
 
 export default function Toolbar() {
   const addNode = useMapStore((s) => s.addNode);
@@ -13,6 +14,7 @@ export default function Toolbar() {
   const redo = useMapStore((s) => s.redo);
   const undoCount = useMapStore((s) => s.undoCount);
   const redoCount = useMapStore((s) => s.redoCount);
+  const resetEdgeControlPoints = useMapStore((s) => s.resetEdgeControlPoints);
   const { fitView, screenToFlowPosition } = useReactFlow();
 
   const handleAddNode = () => {
@@ -61,6 +63,52 @@ export default function Toolbar() {
 
   const handleUndo = () => undo();
   const handleRedo = () => redo();
+
+  const handleExportJpg = async () => {
+    const viewport = document.querySelector('.react-flow__viewport') as HTMLElement | null;
+    if (!viewport) return;
+
+    const nodes = useMapStore.getState().nodes;
+    if (nodes.length === 0) {
+      alert('Nothing to export — add some nodes first.');
+      return;
+    }
+
+    const IMAGE_WIDTH = 4096;
+    const IMAGE_HEIGHT = 3072;
+
+    const nodesBounds = getNodesBounds(nodes);
+    const { x, y, zoom } = getViewportForBounds(
+      nodesBounds,
+      IMAGE_WIDTH,
+      IMAGE_HEIGHT,
+      0.5,
+      2,
+      0.2,
+    );
+
+    try {
+      const dataUrl = await toJpeg(viewport, {
+        quality: 0.95,
+        backgroundColor: '#f8fafc',
+        width: IMAGE_WIDTH,
+        height: IMAGE_HEIGHT,
+        style: {
+          width: `${IMAGE_WIDTH}px`,
+          height: `${IMAGE_HEIGHT}px`,
+          transform: `translate(${x}px, ${y}px) scale(${zoom})`,
+        },
+      });
+
+      const link = document.createElement('a');
+      const date = new Date().toISOString().slice(0, 10);
+      link.download = `systems-map-${date}.jpg`;
+      link.href = dataUrl;
+      link.click();
+    } catch (err) {
+      alert(`JPG export failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  };
 
   return (
     <div className="absolute top-3 left-3 z-10 flex items-center gap-1.5 bg-white rounded-lg shadow-md border border-gray-200 px-2 py-1.5">
@@ -141,15 +189,35 @@ export default function Toolbar() {
         ⊞ Auto Layout
       </button>
 
+      {/* Reset All Curves (bezier mode only) */}
+      {config.edgeStyle === 'bezier' && (
+        <button
+          onClick={resetEdgeControlPoints}
+          className="px-2.5 py-1.5 text-xs font-medium bg-blue-50 text-blue-600 rounded-md hover:bg-blue-100 transition-colors"
+          title="Reset all bezier control points to default"
+        >
+          ↺ Reset Curves
+        </button>
+      )}
+
       <div className="w-px h-6 bg-gray-200" />
 
-      {/* Export */}
+      {/* Export JSON */}
       <button
         onClick={handleExport}
         className="px-2.5 py-1.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 transition-colors"
         title="Export as JSON"
       >
-        ↓ Export
+        ↓ JSON
+      </button>
+
+      {/* Export JPG */}
+      <button
+        onClick={handleExportJpg}
+        className="px-2.5 py-1.5 text-xs font-medium bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 transition-colors"
+        title="Export as JPG image"
+      >
+        ↓ JPG
       </button>
 
       {/* Import */}
