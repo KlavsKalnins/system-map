@@ -95,6 +95,28 @@ export default function Toolbar() {
       const edgeLabels = viewport.querySelectorAll<HTMLElement>('.react-flow__edgelabel-renderer');
       edgeLabels.forEach((el) => (el.style.visibility = 'hidden'));
 
+      // Clone category blobs SVG into the viewport so html-to-image captures them.
+      // The blobs normally live outside .react-flow__viewport and use a live viewport
+      // transform, so we need to re-transform them to match the export transform.
+      let blobClone: SVGSVGElement | null = null;
+      const rfContainer = viewport.closest('.react-flow');
+      const blobSvg = rfContainer?.querySelector<SVGSVGElement>(':scope > svg.pointer-events-none');
+      if (blobSvg) {
+        blobClone = blobSvg.cloneNode(true) as SVGSVGElement;
+        // Replace the live viewport transform with identity — the export already
+        // applies its own translate/scale via the style override on the viewport.
+        const g = blobClone.querySelector('g');
+        if (g) g.setAttribute('transform', `translate(0, 0) scale(1)`);
+        // Position absolutely within the viewport
+        blobClone.style.position = 'absolute';
+        blobClone.style.inset = '0';
+        blobClone.style.width = '100%';
+        blobClone.style.height = '100%';
+        blobClone.style.overflow = 'visible';
+        blobClone.style.zIndex = '0';
+        viewport.insertBefore(blobClone, viewport.firstChild);
+      }
+
       const dataUrl = await toJpeg(viewport, {
         quality: 0.95,
         backgroundColor: '#f8fafc',
@@ -109,6 +131,8 @@ export default function Toolbar() {
 
       // Restore edge labels
       edgeLabels.forEach((el) => (el.style.visibility = ''));
+      // Remove temporary blob clone
+      if (blobClone) blobClone.remove();
 
       const link = document.createElement('a');
       const date = new Date().toISOString().slice(0, 10);
@@ -119,6 +143,8 @@ export default function Toolbar() {
       // Restore edge labels on failure too
       const edgeLabels = viewport.querySelectorAll<HTMLElement>('.react-flow__edgelabel-renderer');
       edgeLabels.forEach((el) => (el.style.visibility = ''));
+      // Remove temporary blob clone on failure too
+      if (blobClone) blobClone.remove();
       alert(`JPG export failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     }
   };
