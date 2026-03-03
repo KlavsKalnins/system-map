@@ -35,6 +35,7 @@ const EdgeSchema = z.object({
 const ConfigSchema = z.object({
   blobsEnabled: z.boolean(),
   snapToGrid: z.boolean(),
+  autoHandles: z.boolean().optional(),
   gridSize: z.number(),
   blobPadding: z.number().optional(),
   edgeStyle: z.enum(['classic', 'bezier']).optional(),

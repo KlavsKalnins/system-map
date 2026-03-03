@@ -184,6 +184,19 @@ export default function Toolbar() {
         ⊞ Snap
       </button>
 
+      {/* Auto handles toggle */}
+      <button
+        onClick={() => setConfig({ autoHandles: !config.autoHandles })}
+        className={`px-2.5 py-1.5 text-xs font-medium rounded-md transition-colors ${
+          config.autoHandles
+            ? 'bg-teal-100 text-teal-700 hover:bg-teal-200'
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        }`}
+        title="Auto-adjust arrow sides on node move"
+      >
+        ⇄ Arrows
+      </button>
+
       {/* Fit view */}
       <button
         onClick={handleFitView}

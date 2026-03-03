@@ -34,6 +34,7 @@ export type SystemEdge = Edge<SystemEdgeData>;
 export interface MapConfig {
   blobsEnabled: boolean;
   snapToGrid: boolean;
+  autoHandles: boolean;
   gridSize: number;
   blobPadding: number;
   edgeStyle: 'classic' | 'bezier';

@@ -40,6 +40,7 @@ const STORAGE_KEY = 'systems-map-autosave';
 const defaultConfig: MapConfig = {
   blobsEnabled: false,
   snapToGrid: false,
+  autoHandles: false,
   gridSize: 20,
   blobPadding: 40,
   edgeStyle: 'classic',
@@ -79,6 +80,7 @@ interface MapState {
 
   // Layout
   autoLayout: (direction?: 'TB' | 'LR' | 'BT' | 'RL') => void;
+  optimizeHandles: () => void;
 
   // Undo / Redo
   undo: () => void;
@@ -109,7 +111,20 @@ export const useMapStore = create<MapState>((set, get) => ({
   // ── React Flow event handlers ───────────────────────────────────────────
 
   onNodesChange: (changes) => {
-    set({ nodes: applyNodeChanges(changes, get().nodes) });
+    const newNodes = applyNodeChanges(changes, get().nodes);
+    set({ nodes: newNodes });
+
+    // Auto-optimize edge handles when a drag finishes
+    if (get().config.autoHandles) {
+      const dragEnded = changes.some(
+        (c) => c.type === 'position' && 'dragging' in c && c.dragging === false,
+      );
+      if (dragEnded) {
+        const { edges } = get();
+        const optimized = optimizeEdgeHandles(newNodes, edges);
+        set({ edges: optimized });
+      }
+    }
   },
 
   onEdgesChange: (changes) => {
@@ -258,6 +273,12 @@ export const useMapStore = create<MapState>((set, get) => ({
     set({ nodes: laid, edges: optimizedEdges });
   },
 
+  optimizeHandles: () => {
+    const { nodes, edges } = get();
+    const optimized = optimizeEdgeHandles(nodes, edges);
+    set({ edges: optimized });
+  },
+
   // ── Undo / Redo ─────────────────────────────────────────────────────────
 
   undo: () => {
@@ -328,7 +349,7 @@ export const useMapStore = create<MapState>((set, get) => ({
       };
     });
     set({
-      config: { ...defaultConfig, ...save.config, blobPadding: save.config.blobPadding ?? 40, edgeStyle: save.config.edgeStyle ?? 'classic' },
+      config: { ...defaultConfig, ...save.config, blobPadding: save.config.blobPadding ?? 40, edgeStyle: save.config.edgeStyle ?? 'classic', autoHandles: save.config.autoHandles ?? false },
       nodes: save.nodes,
       edges: migratedEdges,
       viewport: save.viewport ?? { x: 0, y: 0, zoom: 1 },

@@ -94,33 +94,25 @@ export function optimizeEdgeHandles(
   nodes: SystemNode[],
   edges: SystemEdge[],
 ): SystemEdge[] {
-  // Build a position lookup (top-left corner)
-  const posMap = new Map<string, { x: number; y: number; w: number; h: number }>();
+  // Build a center-point lookup using measured dimensions when available
+  const centerMap = new Map<string, { cx: number; cy: number }>();
   for (const node of nodes) {
-    // We don't know actual rendered height, use the same estimate
-    let conns = 0;
-    for (const e of edges) {
-      if (e.source === node.id || e.target === node.id) conns++;
-    }
-    const h = conns >= 5
-      ? NODE_HEIGHT_BASE + 40
-      : NODE_HEIGHT_BASE + conns * 20;
-    posMap.set(node.id, { x: node.position.x, y: node.position.y, w: NODE_WIDTH, h });
+    const measured = (node as unknown as { measured?: { width?: number; height?: number } }).measured;
+    const w = measured?.width ?? NODE_WIDTH;
+    const h = measured?.height ?? NODE_HEIGHT_BASE;
+    centerMap.set(node.id, {
+      cx: node.position.x + w / 2,
+      cy: node.position.y + h / 2,
+    });
   }
 
   return edges.map((edge) => {
-    const src = posMap.get(edge.source);
-    const tgt = posMap.get(edge.target);
+    const src = centerMap.get(edge.source);
+    const tgt = centerMap.get(edge.target);
     if (!src || !tgt) return edge;
 
-    // Center points
-    const srcCx = src.x + src.w / 2;
-    const srcCy = src.y + src.h / 2;
-    const tgtCx = tgt.x + tgt.w / 2;
-    const tgtCy = tgt.y + tgt.h / 2;
-
-    const bestSource = pickBestSide(srcCx, srcCy, tgtCx, tgtCy);
-    const bestTarget = pickBestSide(tgtCx, tgtCy, srcCx, srcCy);
+    const bestSource = pickBestSide(src.cx, src.cy, tgt.cx, tgt.cy);
+    const bestTarget = pickBestSide(tgt.cx, tgt.cy, src.cx, src.cy);
 
     return {
       ...edge,
