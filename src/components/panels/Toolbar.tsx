@@ -90,6 +90,8 @@ export default function Toolbar() {
       0.2,
     );
 
+    let blobClone: SVGSVGElement | null = null;
+
     try {
       // Hide edge labels (polarity/reverse buttons) during capture
       const edgeLabels = viewport.querySelectorAll<HTMLElement>('.react-flow__edgelabel-renderer');
@@ -98,7 +100,6 @@ export default function Toolbar() {
       // Clone category blobs SVG into the viewport so html-to-image captures them.
       // The blobs normally live outside .react-flow__viewport and use a live viewport
       // transform, so we need to re-transform them to match the export transform.
-      let blobClone: SVGSVGElement | null = null;
       const rfContainer = viewport.closest('.react-flow');
       const blobSvg = rfContainer?.querySelector<SVGSVGElement>(':scope > svg.pointer-events-none');
       if (blobSvg) {
