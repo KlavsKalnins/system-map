@@ -1,6 +1,8 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useMapStore } from '../../store/useMapStore';
 import { getCategoryColor } from '../../lib/colors';
+import { toJpeg } from 'html-to-image';
+import { jsPDF } from 'jspdf';
 
 interface AnalyticsPanelProps {
   open: boolean;
@@ -144,6 +146,68 @@ export default function AnalyticsPanel({ open, onClose }: AnalyticsPanelProps) {
     };
   }, [nodes, edges, config.categories]);
 
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  const handleDownloadImage = useCallback(async (format: 'pdf' | 'jpg') => {
+    const el = contentRef.current;
+    if (!el) return;
+
+    try {
+      // Temporarily expand the container so everything renders without scroll clipping
+      const parent = el.parentElement as HTMLElement | null;
+      const origMaxH = parent?.style.maxHeight ?? '';
+      const origH = el.style.maxHeight;
+      const origOverflow = el.style.overflow;
+      if (parent) parent.style.maxHeight = 'none';
+      el.style.maxHeight = 'none';
+      el.style.overflow = 'visible';
+
+      const dataUrl = await toJpeg(el, {
+        quality: 0.95,
+        backgroundColor: '#ffffff',
+        pixelRatio: 2,
+      });
+
+      // Restore
+      if (parent) parent.style.maxHeight = origMaxH;
+      el.style.maxHeight = origH;
+      el.style.overflow = origOverflow;
+
+      const date = new Date().toISOString().slice(0, 10);
+
+      if (format === 'jpg') {
+        const link = document.createElement('a');
+        link.download = `system-analytics-${date}.jpg`;
+        link.href = dataUrl;
+        link.click();
+        return;
+      }
+
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise<void>((resolve) => {
+        img.onload = () => resolve();
+      });
+
+      // A4 landscape-ish proportions, fit content
+      const pxW = img.naturalWidth;
+      const pxH = img.naturalHeight;
+      const pdfW = 210; // A4 width mm
+      const pdfH = (pxH / pxW) * pdfW;
+
+      const pdf = new jsPDF({
+        orientation: pdfH > pdfW ? 'portrait' : 'landscape',
+        unit: 'mm',
+        format: [pdfW, pdfH + 10], // small bottom margin
+      });
+
+      pdf.addImage(dataUrl, 'JPEG', 0, 5, pdfW, pdfH);
+      pdf.save(`system-analytics-${date}.pdf`);
+    } catch (err) {
+      alert(`Export failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
+    }
+  }, []);
+
   if (!open) return null;
 
   const maxConnections = Math.max(1, ...stats.byConnections.map((n) => n.total));
@@ -160,15 +224,31 @@ export default function AnalyticsPanel({ open, onClose }: AnalyticsPanelProps) {
             <h2 className="text-base font-semibold text-gray-800">System Analytics</h2>
             <p className="text-xs text-gray-400 mt-0.5">Structure, polarity, and feedback insights</p>
           </div>
-          <button
-            onClick={onClose}
-            className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => handleDownloadImage('jpg')}
+              className="px-2.5 py-1 text-xs font-medium bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 transition-colors"
+              title="Download as JPG"
+            >
+              ↓ JPG
+            </button>
+            <button
+              onClick={() => handleDownloadImage('pdf')}
+              className="px-2.5 py-1 text-xs font-medium bg-cyan-100 text-cyan-700 rounded-md hover:bg-cyan-200 transition-colors"
+              title="Download as PDF"
+            >
+              ↓ PDF
+            </button>
+            <button
+              onClick={onClose}
+              className="w-7 h-7 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors"
+            >
+              ✕
+            </button>
+          </div>
         </div>
 
-        <div className="overflow-y-auto flex-1 p-6 space-y-6">
+        <div ref={contentRef} className="overflow-y-auto flex-1 p-6 space-y-6">
           {/* Overview cards */}
           <div className="grid grid-cols-4 gap-3">
             <StatCard label="Nodes" value={stats.totalNodes} color="#3b82f6" />
