@@ -36,6 +36,7 @@ const ConfigSchema = z.object({
   blobsEnabled: z.boolean(),
   snapToGrid: z.boolean(),
   gridSize: z.number(),
+  blobPadding: z.number().optional(),
   categories: z.array(CategorySchema),
 });
 

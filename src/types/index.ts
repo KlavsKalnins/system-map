@@ -33,6 +33,7 @@ export interface MapConfig {
   blobsEnabled: boolean;
   snapToGrid: boolean;
   gridSize: number;
+  blobPadding: number;
   categories: Category[];
 }
 

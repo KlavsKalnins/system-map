@@ -74,6 +74,20 @@ export default function ConfigPanel() {
         />
       </div>
 
+      {/* Blob padding */}
+      <div className="mb-3">
+        <label className="block text-xs text-gray-500 mb-1">Blob Padding: {config.blobPadding ?? 40}px</label>
+        <input
+          type="range"
+          min={0}
+          max={120}
+          step={5}
+          value={config.blobPadding ?? 40}
+          onChange={(e) => setConfig({ blobPadding: Number(e.target.value) })}
+          className="w-full"
+        />
+      </div>
+
       {/* Categories */}
       <div className="mb-2">
         <label className="block text-xs font-medium text-gray-500 mb-1">Categories</label>

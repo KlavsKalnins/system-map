@@ -41,6 +41,7 @@ const defaultConfig: MapConfig = {
   blobsEnabled: false,
   snapToGrid: false,
   gridSize: 20,
+  blobPadding: 40,
   categories: DEFAULT_CATEGORIES,
 };
 
@@ -310,7 +311,7 @@ export const useMapStore = create<MapState>((set, get) => ({
       };
     });
     set({
-      config: save.config,
+      config: { ...defaultConfig, ...save.config, blobPadding: save.config.blobPadding ?? 40 },
       nodes: save.nodes,
       edges: migratedEdges,
       viewport: save.viewport ?? { x: 0, y: 0, zoom: 1 },
