@@ -152,7 +152,7 @@ Planned enhancements include:
 
 ## 📄 License
 
-This project is open source. See the repository for license details.
+This project is open source. A formal license file has not yet been added — if you plan to use or contribute to this project, please open an issue or check back for updates. Common choices for open-source projects include [MIT](https://choosealicense.com/licenses/mit/), [Apache 2.0](https://choosealicense.com/licenses/apache-2.0/), and [GPL-3.0](https://choosealicense.com/licenses/gpl-3.0/).
 
 ---
 
